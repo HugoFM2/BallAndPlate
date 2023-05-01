@@ -30,14 +30,7 @@ class CompVisual(QThread):
     enableArUcoDetection = True
     enableChArUcoContour = False
     eulerAngles_Plate = pyqtSignal(dict)
-    '''
-    {"1" : [160,0,20],
-     "2" : [160,0,20],
-     "3" : [160,0,20]}
-    '''
     # file1 = open("angleData.txt", "a") # Utilizado para filtrar - COMENTAR CASO NAO USE 
-
-        
 
         
 
@@ -74,7 +67,10 @@ class CompVisual(QThread):
         return rotated_image
 
     def DetectaBolinha(self,hsv):
-
+        """
+        Detect the ball in a HSV image (giving a lower and upper global HSV variables), and return if the ball is detected
+        and its coordinates
+        """
         kernel = np.ones((5, 5), np.uint8)
 
         # Criando a mascara para deteccao da bolinha
@@ -102,10 +98,14 @@ class CompVisual(QThread):
 
                 
         bolinha = (x,y,radius,center)
-        return bolinha,bolinha_detectada
+        return bolinha_detectada,bolinha
 
         
     def DetectChArUco(self,image,mtx,dist):
+        """
+        Detect the charuco board and return its rvec(Rotation Vector) tvec (Translation vector, assuming the upper-left corner),
+        and 2 images
+        """
         image_Charuco = image.copy()
         dici_Aruco = { "ChArUco" : {    "rvec" : None,
                                         "tvec" : None}}
@@ -156,19 +156,11 @@ class CompVisual(QThread):
                     # image_Charuco = cv.circle(image_Charuco, tuple(ponto_centro), 10, (255, 255, 0), thickness=2)
 
 
-
-
-                        
-
-        # image_Charuco = cv.aruco.drawDetectedMarkers(image_Charuco,corners)
-        # print(ids)
                     # Definindo os pontos do quadrado em 3d
                     ponto_SuperiorEsquerdo = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=0-50,distanceY=0-50.3) 
                     ponto_InferiorEsquerdo = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=0-50,distanceY=180+49.7) 
                     ponto_SuperiorDireito = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=180+50,distanceY=0-50.3)
                     ponto_InferiorDireito = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=180+50,distanceY=180+49.7) 
-                    
-
                     pontos_src = np.array([ponto_SuperiorEsquerdo,ponto_InferiorEsquerdo,ponto_SuperiorDireito,ponto_InferiorDireito])
 
                     w,h = image_Charuco.shape[:2]
@@ -191,22 +183,24 @@ class CompVisual(QThread):
 
         return rvec,tvec,corrected_image_Charuco,image_Charuco
             
-    def loadCameraCallibration(self): # Carrega os dados de calibração da camera, ret, cameraMatrix e DistCoeff 
+
+    def loadCameraCallibration(self,filename):
+        """
+        Load calibration variables from camera (ret,CameraMatrix and DistCoeffs)
+        """
         import json
-        f = open("CallibrationData.json")
+        f = open(filename)
         data = json.load(f)
-        # print
+
         return np.array(data['ret']), np.array(data['mtx']), np.array(data['dist'])        
         
+
     def run(self):
         self.ThreadActive = True
-
-        ret, mtx, dist  = self.loadCameraCallibration() # Define os parametros intrínsecos da camera
-
+        ret, mtx, dist  = self.loadCameraCallibration("CallibrationData.json") # Define os parametros intrínsecos da camera
         ret, img = self.cap.read()
         if ret:
             h, w, _ = img.shape
-
 
         while self.ThreadActive:
             ret, img = self.cap.read()
@@ -232,7 +226,7 @@ class CompVisual(QThread):
                     gaussian_blurr__charuco = cv.GaussianBlur(corrected_image_Charuco.copy(), (3,3), cv.BORDER_DEFAULT) # Aplicando para reduzir noise and outliers
                     hsv_charuco = cv.cvtColor(gaussian_blurr__charuco, cv.COLOR_BGR2HSV)
                     
-                    bolinha,bolinha_detectada = self.DetectaBolinha(hsv_charuco)
+                    bolinha_detectada,bolinha = self.DetectaBolinha(hsv_charuco)
                     
                     if bolinha_detectada: # Caso bolinha seja detectada
                         x_bolinha,y_bolinha,r_bolinha,centro_bolinha = bolinha
@@ -243,10 +237,8 @@ class CompVisual(QThread):
                         cv.circle(corrected_image_Charuco, (int(x_bolinha), int(y_bolinha)), int(r_bolinha), (0, 255, 255), 5)
                         cv.circle(corrected_image_Charuco, centro_bolinha, 5, (255,255 , 255), -1)
 
-
                     self.ArucoImage.emit(corrected_image_Charuco)
             
-
             self.mainImage.emit(img_orig)
 
 
