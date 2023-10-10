@@ -130,13 +130,15 @@ class CompVisual(QThread):
         if len(cnts) > 0:
             c = max(cnts, key=cv.contourArea)
             ((x, y), radius) = cv.minEnclosingCircle(c)
-            M = cv.moments(c)
-            if(M["m00"] != 0):
-                center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-                bolinha_detectada = True
+            bolinha_detectada = True
+
+            # M = cv.moments(c)
+            # if(M["m00"] != 0):
+            #     center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+            #     bolinha_detectada = True
 
                 
-        bolinha = (x,y,radius,center)
+        bolinha = (x,y,radius)
 
 
 
@@ -260,6 +262,15 @@ class CompVisual(QThread):
 
         return np.array(data['ret']), np.array(data['mtx']), np.array(data['dist'])        
         
+    def CalculateFPS(self,image):
+        # Calculate FPS
+        self.new_frame_time = time.time()
+        deltaT = (self.new_frame_time-self.prev_frame_time)
+        if deltaT != 0:
+            fps = str(int( 1/(self.new_frame_time-self.prev_frame_time) ))
+        self.prev_frame_time = self.new_frame_time
+        cv.putText(image, fps, (7, 70), self.font, 3, (100, 255, 0), 3, cv.LINE_AA)
+        return image
 
     def run(self):
         vs = WebcamVideoStream(src=0).start()
@@ -276,33 +287,23 @@ class CompVisual(QThread):
         while self.ThreadActive:
             # print(time.time())
             img_orig = vs.read()
-            # ret, img = self.cap.read()
-            # cv.imshow("Video", img)
-            # cv.waitKey(1)
-            # cv.destroyAllWindows()
-            # cv.startWindowThread()
-            # cv.namedWindow("preview")
-            # cv.imshow("preview", img)
 
-            
-            # print("a")
-            # plt.imshow(cv.cvtColor(img, cv.COLOR_BGR2RGB))
-            # plt.show()
-            # if ret: # Caso detecte a camera
             if True:
 
-                # success, img_orig = self.cap.read()
+
                 h, w, _ = img_orig.shape # Height, width da imagem original da camera
+
+                # Aplica Correção de distorção
                 if self.enableUndistortion:
-                    # img_orig = cv.undistort(img, mtx, dist, None, None) # Undistort function is too CPU-consuming
                     img_orig = cv.remap(img_orig,map1,map2,cv.INTER_LINEAR)
 
 
+                # Aplica detecção dos charucos
                 if self.enableArUcoDetection: # Se a opcao de Detectar Aruco for Habilitada
 
-                    # img_orig = self.DetectAruco(img_orig,mtx,dist)
+ 
                     rvec,tvec,corrected_image_Charuco,image_charuco = self.DetectChArUco(img_orig,mtx,dist)
-                    # print(f"RVEC:{rvec}")
+
                     if rvec is not None: # Caso detecte o ChArUco
                         if self.enableChArUcoContour:
                             img_orig = image_charuco
@@ -313,22 +314,21 @@ class CompVisual(QThread):
                         self.bolinha_detectada,bolinha = self.DetectaBolinha(hsv_charuco)
                         
                         if self.bolinha_detectada: # Caso bolinha seja detectada
-                            x_bolinha,y_bolinha,r_bolinha,centro_bolinha = bolinha
+                            x_bolinha,y_bolinha,r_bolinha = bolinha
                             # print(centro_bolinha)
 
                             # Como a imagem possui 600x600, redimensionar a posicao da bolinha para atender esses requisitos
                             # Modificando as coordenadas para o centro da superficie ser o ponto (0,0)
-                            x_bolinha_coord = x_bolinha/2 - 150
-                            y_bolinha_coord = y_bolinha/2 - 150
-                            centro_bolinha_coord = (centro_bolinha[0]/2 - 150, centro_bolinha[1]/2 - 150)
-                            if (centro_bolinha_coord[0]**2 + centro_bolinha_coord[1]**2) < 22500: # Caso a Bolinha esteja no Raio
+                            x_bolinha_coord = (x_bolinha/2 - 150)/10 # Divide por 10 para ser em metros
+                            y_bolinha_coord = (y_bolinha/2 - 150)/10 # Divide por 10 para ser em metros
+                            if (x_bolinha_coord**2 + y_bolinha_coord**2) < 22500: # Caso a Bolinha esteja no Raio
 
-                                self.bolinha_coordenadas = [x/10 for x in centro_bolinha_coord] # Divide por 100 para ficar em metros
+                                self.bolinha_coordenadas = (x_bolinha_coord,y_bolinha_coord) # Divide por 100 para ficar em metros
                                 self.x_ball.emit(round(float(x_bolinha_coord/10),2))
                                 self.y_ball.emit(round(float(y_bolinha_coord/10),2))
 
                             else:
-                                self.bolinha_coordenadas = [100,100]
+                                self.bolinha_coordenadas = (100,100)
                                 self.x_ball.emit(100.0)
                                 self.y_ball.emit(100.0)
 
@@ -344,13 +344,9 @@ class CompVisual(QThread):
 
                         self.ArucoImage.emit(cv.resize(corrected_image_Charuco.copy(),(384,384))) # Redimensiona a imagem para o tamanho da GUI)
                 
+
                 # Calculate FPS
-                self.new_frame_time = time.time()
-                deltaT = (self.new_frame_time-self.prev_frame_time)
-                if deltaT != 0:
-                    fps = str(int( 1/(self.new_frame_time-self.prev_frame_time) ))
-                self.prev_frame_time = self.new_frame_time
-                cv.putText(img_orig, fps, (7, 70), self.font, 3, (100, 255, 0), 3, cv.LINE_AA)
+                self.CalculateFPS(img_orig)
 
 
                 self.mainImage.emit(img_orig)
