@@ -23,9 +23,9 @@ class CompVisual(QThread):
     # cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc('M', 'J', 'P', 'G'))
 
     #CharUcoDefinition parameters
-    ChArUcoDict = cv.aruco.getPredefinedDictionary(cv.aruco.DICT_4X4_50)
-    # ChArUcoBoard = cv.aruco.CharucoBoard((5, 5), 360, 300, ChArUcoDict) # Unidade está em 1/10mm, ou seja 360 = 36mm
-    ChArUcoBoard = cv.aruco.CharucoBoard((3, 3), 600, 500, ChArUcoDict) # Para o Caso de DiamondBoard
+    ArUcoDict = cv.aruco.getPredefinedDictionary(cv.aruco.DICT_4X4_50)
+    ChArUcoBoard = cv.aruco.CharucoBoard((5, 5), 360, 300, ArUcoDict) # Unidade está em 1/10mm, ou seja 360 = 36mm
+    # ChArUcoBoard = cv.aruco.CharucoBoard((3, 3), 600, 500, ChArUcoDict,np.array([2,3,4,5])) # Para o Caso de DiamondBoard
     # CharucoParams = cv.aruco.CharucoParameters(mtx,dist)
     # print(CharucoParams)
     detectorParams = cv.aruco.DetectorParameters()
@@ -34,6 +34,12 @@ class CompVisual(QThread):
 
     detector = cv.aruco.CharucoDetector(ChArUcoBoard,detectorParams=detectorParams)
 
+    #Detector Aruco
+    marker_size=500 # in 1/10mm
+    marker_points = np.array([[-marker_size / 2, marker_size / 2, 0],
+                              [marker_size / 2, marker_size / 2, 0],
+                              [marker_size / 2, -marker_size / 2, 0],
+                              [-marker_size / 2, -marker_size / 2, 0]], dtype=np.float32)
 
     arucoParams = cv.aruco.DetectorParameters()    
 
@@ -52,7 +58,7 @@ class CompVisual(QThread):
     lowerHSV_Ball, upperHSV_Ball = (0,0,0), (0,0,0)
     erode_Ball, dilate_Ball = 0,0
     enableBallContour = False
-    x_ball,y_ball,z_ball = pyqtSignal(int),pyqtSignal(int),pyqtSignal(int)
+    x_ball,y_ball,z_ball = pyqtSignal(float),pyqtSignal(float),pyqtSignal(float)
 
     enableUndistortion = True
 
@@ -136,7 +142,27 @@ class CompVisual(QThread):
 
         return bolinha_detectada,bolinha
 
-        
+    def DetectSingleAruco(self,image,corners,ids,idAruco,arucoDetector,mtx,dist):
+        # print(ids)
+        if [idAruco] in ids:
+            idx = np.where(ids==[12])[0][0] # Index do Aruco de ID idAruco
+            # print(corners[idx])
+            _,rvec,tvec = cv.solvePnP(self.marker_points,corners[idx],mtx,dist)
+            # image = cv.drawFrameAxes(image,mtx,dist,rvec,tvec,500,3) # Desenha os eixos
+            rmat,_ = cv.Rodrigues(rvec)
+            
+            rmat = mf.rotate3d(rmat,angle_x=np.deg2rad(0),angle_y=np.deg2rad(0),angle_z=np.deg2rad(0))
+            # rmat = np.linalg.inv(rmat)
+            # print(rmat)
+            # print('________')
+            rvec,_= cv.Rodrigues(rmat)
+            # print(rvec)
+            image = cv.drawFrameAxes(image,mtx,dist,rvec,tvec,500,3) # Desenha os eixos
+            # print(rvec)
+            return rvec,tvec
+        return None,[0]
+
+
     def DetectChArUco(self,image,mtx,dist):
         """
         Detect the charuco board and return its rvec(Rotation Vector) tvec (Translation vector, assuming the upper-left corner),
@@ -147,26 +173,33 @@ class CompVisual(QThread):
                                         "tvec" : None}}
 
 
-       
-        arucoDetector = cv.aruco.ArucoDetector(self.ChArUcoDict,self.arucoParams)
+        arucoDetector = cv.aruco.ArucoDetector(self.ArUcoDict,self.arucoParams)
         (corners, ids, rejected) = arucoDetector.detectMarkers(image_Charuco)
-
+        if ids is None:
+            ids = [] 
         # Inicializando variaveis que retornam
         corrected_image_Charuco = cv.resize(image_Charuco.copy(),(600,600)) # A cada 2 pixels, 1 centimetro
         rvec,tvec = None,None
-        if ids is not None: # Se ao menos um marker foi detectado
-
+        if len(ids) > 3: # Se ao menos 3 marker foi detectado
+            # print(ids)
+            # rvecMesa,tvecMesa = self.DetectSingleAruco(image_Charuco,corners,ids,idAruco=12,arucoDetector=arucoDetector,mtx=mtx,dist=dist)
             if self.enableChArUcoContour:
-                print("detecotu marker")
+                # print("detecotu marker")
                 image_Charuco = cv.aruco.drawDetectedMarkers(image_Charuco,corners)
             (retval,CharucoCorners,CharucoIds) = cv.aruco.interpolateCornersCharuco(corners,
                                                                   ids,image_Charuco,self.ChArUcoBoard,mtx,dist)
             # (CharucoCorners, CharucoIds) = cv.aruco.detectBoard(image_Charuco,ids,ChArUcoBoard)
             if CharucoCorners is not None: # Se ao menos uma quina do charuco for detectada
+
                 if self.enableChArUcoContour:
                     image_Charuco = cv.aruco.drawDetectedCornersCharuco(image_Charuco,CharucoCorners,CharucoIds)
+
+
                 valid,rvec,tvec = cv.aruco.estimatePoseCharucoBoard(CharucoCorners,CharucoIds,self.ChArUcoBoard,mtx,dist,
                                                           None,None,False)
+                # if rvecMesa is not None:
+                #     print(mf.rVecToEulerList(rvec-rvecMesa))
+
                 
                 if valid: # Detectou o board
                     if self.enableChArUcoContour:
@@ -180,7 +213,7 @@ class CompVisual(QThread):
 
                     # Encontra o ponto no centro, localizado a 9cm do eixo superior esquerdo
                     ponto_centro = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=90,distanceY=90)
-                    print(f'Ponto Centro: {ponto_centro}')
+                    # print(f'Ponto Centro: {ponto_centro}')
 
                     image_Charuco = cv.circle(image_Charuco, tuple(ponto_centro), 10, (255, 255, 0), thickness=2)
                         
@@ -241,7 +274,7 @@ class CompVisual(QThread):
                 cv.CV_16SC2) # Getting the undistortion map
 
         while self.ThreadActive:
-            print(time.time())
+            # print(time.time())
             img_orig = vs.read()
             # ret, img = self.cap.read()
             # cv.imshow("Video", img)
@@ -257,23 +290,23 @@ class CompVisual(QThread):
             # plt.show()
             # if ret: # Caso detecte a camera
             if True:
+
                 # success, img_orig = self.cap.read()
                 h, w, _ = img_orig.shape # Height, width da imagem original da camera
                 if self.enableUndistortion:
                     # img_orig = cv.undistort(img, mtx, dist, None, None) # Undistort function is too CPU-consuming
                     img_orig = cv.remap(img_orig,map1,map2,cv.INTER_LINEAR)
 
-                # gaussian_blurr = cv.GaussianBlur(img_orig.copy(), (3,3), cv.BORDER_DEFAULT) # Aplicando para reduzir noise and outliers
-                # hsv = cv.cvtColor(gaussian_blurr, cv.COLOR_BGR2HSV) # Aplica filtro HSV para detectar a bolinha
-
 
                 if self.enableArUcoDetection: # Se a opcao de Detectar Aruco for Habilitada
+
                     # img_orig = self.DetectAruco(img_orig,mtx,dist)
                     rvec,tvec,corrected_image_Charuco,image_charuco = self.DetectChArUco(img_orig,mtx,dist)
+                    # print(f"RVEC:{rvec}")
                     if rvec is not None: # Caso detecte o ChArUco
                         if self.enableChArUcoContour:
                             img_orig = image_charuco
-                            print("Aruco Habilitado")
+
                         gaussian_blurr__charuco = cv.GaussianBlur(corrected_image_Charuco.copy(), (3,3), cv.BORDER_DEFAULT) # Aplicando para reduzir noise and outliers
                         hsv_charuco = cv.cvtColor(gaussian_blurr__charuco, cv.COLOR_BGR2HSV)
 
@@ -288,22 +321,34 @@ class CompVisual(QThread):
                             x_bolinha_coord = x_bolinha/2 - 150
                             y_bolinha_coord = y_bolinha/2 - 150
                             centro_bolinha_coord = (centro_bolinha[0]/2 - 150, centro_bolinha[1]/2 - 150)
+                            if (centro_bolinha_coord[0]**2 + centro_bolinha_coord[1]**2) < 22500: # Caso a Bolinha esteja no Raio
 
-                            self.bolinha_coordenadas = centro_bolinha_coord
+                                self.bolinha_coordenadas = [x/10 for x in centro_bolinha_coord] # Divide por 100 para ficar em metros
+                                self.x_ball.emit(round(float(x_bolinha_coord/10),2))
+                                self.y_ball.emit(round(float(y_bolinha_coord/10),2))
 
-                            self.x_ball.emit(int(x_bolinha_coord))
-                            self.y_ball.emit(int(y_bolinha_coord))
+                            else:
+                                self.bolinha_coordenadas = [100,100]
+                                self.x_ball.emit(100.0)
+                                self.y_ball.emit(100.0)
 
                             if self.enableBallContour:
                                 cv.circle(corrected_image_Charuco, (int(x_bolinha), int(y_bolinha)), int(r_bolinha), (0, 255, 255), 5)
                                 # print(centro_bolinha)
                                 cv.circle(corrected_image_Charuco, (centro_bolinha), 5, (255,255 , 255), -1)
 
+                        else: # Caso a bolinha não seja detectada, enviar um valor fixo para detecção que a bolinha nao esta la
+                            self.bolinha_coordenadas = [100,100]
+                            self.x_ball.emit(100)
+                            self.y_ball.emit(100) 
+
                         self.ArucoImage.emit(cv.resize(corrected_image_Charuco.copy(),(384,384))) # Redimensiona a imagem para o tamanho da GUI)
                 
                 # Calculate FPS
                 self.new_frame_time = time.time()
-                fps = str(int( 1/(self.new_frame_time-self.prev_frame_time) ))
+                deltaT = (self.new_frame_time-self.prev_frame_time)
+                if deltaT != 0:
+                    fps = str(int( 1/(self.new_frame_time-self.prev_frame_time) ))
                 self.prev_frame_time = self.new_frame_time
                 cv.putText(img_orig, fps, (7, 70), self.font, 3, (100, 255, 0), 3, cv.LINE_AA)
 

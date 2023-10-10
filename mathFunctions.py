@@ -2,6 +2,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 import math
 import cv2 as cv
+from numpy import sin,cos,deg2rad
 
 # def getAverage(lista,m=2):
 # 	# https://www.kdnuggets.com/2017/02/removing-outliers-standard-deviation-python.html
@@ -12,7 +13,29 @@ import cv2 as cv
 # 	avg = np.mean(lista[s<m])
 # 	return avg
 
+def rotate3d(coords, angle_x,angle_y,angle_z):
+    # coords is a 3x1 matrix with x,y,z coordinates
+    # angle in radians
+    Rz = np.matrix([
+          [+cos(angle_z),  -sin(angle_z),  0],
+          [+sin(angle_z),  +cos(angle_z),  0],
+          [ 0           ,   0           ,  1]])
+    
+    Ry = np.matrix([
+          [+cos(angle_y),   0           , sin(angle_y)],
+          [ 0           ,   1           ,  0],
+          [-sin(angle_y),  0            , +cos(angle_y)]])
 
+    
+    Rx = np.matrix([
+          [1           ,   0           ,  0],
+          [0,   +cos(angle_x)           , -sin(angle_x)],
+          [0,   +sin(angle_x)           , +cos(angle_x)]])
+    
+    res = Rz@Ry@Rx@coords
+    
+ 
+    return res
 
 def rotateMatrix(rotVec,axis,degrees):
 	#Bug, precisa colocar a metade do angulo para funcionar

@@ -3,6 +3,10 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from CompVisual import CompVisual
 from Controle import Controle
 
+from CinematicaInversa.BallAndPlate import BallAndPlate
+from CinematicaInversa.Servo import Servo
+from CinematicaInversa.Plate import Plate
+
 import cv2 as cv
 import numpy as np
 from GUI.integrado import Ui_MainWindow
@@ -58,6 +62,12 @@ class ControlMainWindow(QtWidgets.QMainWindow):
 		self.ui.Slider_Erode_Ball.valueChanged.connect(self.setBallConfiguration)
 		self.ui.Slider_Dilate_Ball.valueChanged.connect(self.setBallConfiguration)
 
+		#Botao de definir manualmente o angulo da superficie
+		self.ui.SendManualSurfaceSetpoint.clicked.connect(self.setManualAngles)
+
+		# Botao de setar parametros PID
+		self.ui.SetPIDValues.clicked.connect(self.setPIDParameters)
+
 		#Save and load Button
 		self.ui.Load_Ball_Button.clicked.connect(lambda : self.LoadBallConfiguration())
 		self.ui.Save_Ball_Button.clicked.connect(lambda : self.SaveBallConfiguration())
@@ -91,28 +101,43 @@ class ControlMainWindow(QtWidgets.QMainWindow):
 
 		# #CinematicaInversa
 		if self.remote:
-			self.Controle = Controle(self.compVisual)
+			Servo1 = Servo(servoIndex=22,zeroAngle=1,servoPos=np.matrix([[0,10,0]]).T,remote=True)
+			Servo2 = Servo(servoIndex=1,zeroAngle=0,servoPos=np.matrix([[10*sin(deg2rad(120)),10*cos(deg2rad(120)),0]]).T,remote=True)
+			Servo3 = Servo(servoIndex=2,zeroAngle=0,servoPos=np.matrix([[10*sin(deg2rad(240)),10*cos(deg2rad(240)),0]]).T,remote=True)
+			plate = Plate(height=11)
+
+
+
 		else:
-			from CinematicaInversa.BallAndPlate import BallAndPlate
-			from CinematicaInversa.Servo import Servo
-			from CinematicaInversa.Plate import Plate
+
 			from adafruit_servokit import ServoKit    #https://circuitpython.readthedocs.io/projects/servokit/en/latest/
 			pca = ServoKit(channels=16)
-			Servo1 = Servo(pca,servoIndex=0,zeroAngle=14,servoPos=np.matrix([[0,10,0]]).T)
-			Servo2 = Servo(pca,servoIndex=1,zeroAngle=10,servoPos=np.matrix([[10*sin(deg2rad(120)),10*cos(deg2rad(120)),0]]).T)
-			Servo3 = Servo(pca,servoIndex=2,zeroAngle=12,servoPos=np.matrix([[10*sin(deg2rad(240)),10*cos(deg2rad(240)),0]]).T)
+			Servo1 = Servo(servoIndex=22,zeroAngle=1,servoPos=np.matrix([[0,10,0]]).T,pca=pca)
+			Servo1.pca.servo[Servo1.servoIndex].set_pulse_width_range(750,2150)
+			Servo2 = Servo(servoIndex=1,zeroAngle=10,servoPos=np.matrix([[10*sin(deg2rad(120)),10*cos(deg2rad(120)),0]]).T,pca=pca)
+			Servo3 = Servo(servoIndex=2,zeroAngle=12,servoPos=np.matrix([[10*sin(deg2rad(240)),10*cos(deg2rad(240)),0]]).T,pca=pca)
 
-			plate = Plate()
+			plate = Plate(height=11)
 
-			self.BallAndPlate = BallAndPlate(Servo1,Servo2,Servo3,plate)
+		self.BallAndPlate = BallAndPlate(Servo1,Servo2,Servo3,plate,remote=True,remoteType="Serial")
 
-			#Controle
-			self.Controle = Controle(self.compVisual,self.BallAndPlate)
-			self.Controle.start()
+		#Controle
+		self.Controle = Controle(self.compVisual,self.BallAndPlate)
+		self.Controle.start()
 
+
+
+	def setPIDParameters(self):
+		self.Controle.kp = self.ui.KpValue.value()
+		self.Controle.ki = self.ui.KiValue.value()
+		self.Controle.kd = self.ui.KdValue.value()
 
 			
-
+	def setManualAngles(self):
+		angle_x = self.ui.alphaManualAngleSetpoint.value()
+		angle_y = self.ui.betaManualAngleSetpoint.value()
+		# print(angle_x,angle_y)
+		self.BallAndPlate.setAngle(angle_x,angle_y)
 
 
 	def CheckBallContour(self):
@@ -125,8 +150,10 @@ class ControlMainWindow(QtWidgets.QMainWindow):
 		self.ui.stackedWidget.setCurrentIndex(indexPage)
 		self.compVisual.pageSelect = indexPage
 
-	def enableControlType(self,index):
-		self.Controle.selectController = index
+	def enableControlType(self,num):
+		self.Controle.selectController = num
+		if num == 1:
+			print("Controle PID Habilitado!")
 
 	def enableSelectSurfacePage(self,indexPage):
 		self.ui.JanelasModoSurface.setCurrentIndex(indexPage)

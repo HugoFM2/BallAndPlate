@@ -33,8 +33,8 @@ class UDPServer:
 				# self.data, addr = self.sock.recvfrom(512) # random buffer size, doesn't matter here..
 				self.data = self.sock.recv(512) #random buffer size, doesn't matter here..
 				# print(f"receive data:{self.data}")
-				self.data = [int(x) for x in self.data.decode('utf-8').split(";")]
-				# print("received message:", self.data)
+				self.data = [round(float(x),2) for x in self.data.decode('utf-8').split(";")]
+				print("received message:", self.data)
 			except socket.timeout:
 				continue
 

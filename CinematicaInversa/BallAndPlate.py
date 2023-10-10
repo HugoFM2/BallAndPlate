@@ -6,13 +6,25 @@ from CinematicaInversa.MatrixFunctions import rotate3d, translate3d
 import numpy as np
 from numpy import sin,cos,deg2rad,rad2deg
 
+
 class BallAndPlate(QThread):
-	def __init__(self,Servo1,Servo2,Servo3,Plate):
+	def __init__(self,Servo1,Servo2,Servo3,Plate,remote=False,remoteType='UDP'):
 		QThread.__init__(self)
 		self.Servo1 = Servo1
 		self.Servo2 = Servo2
 		self.Servo3 = Servo3
 		self.Plate = Plate
+
+		self.remote = remote
+		self.remoteType = remoteType
+
+		if self.remote:
+			if remoteType == 'UDP':
+				from UDPCommunication.client import UDPClient
+				self.client = UDPClient() # Importa comunicacao UDP caso seja remoto
+			if remoteType == 'Serial':
+				from UDPCommunication.serial import SerialComm 
+				self.arduino = SerialComm('COM8')
 
 
 
@@ -27,15 +39,21 @@ class BallAndPlate(QThread):
 
 
 		# Obtem a melhor resposta para a junta J2 e ajusta o angulo do servo
-		resServo1 = self.getPossiblePositionJ2(self.Plate.magnet1Pos,self.Servo1.pos,0,lastGamma=deg2rad(self.Servo1.actualAngle))
+		resServo1 = self.getPossiblePositionJ2(self.Plate.magnet1Pos,self.Servo1.pos,0,lastGamma=deg2rad(0))
 		self.Servo1.setAngle(rad2deg(resServo1['BestGamma']))
 
-		resServo2 = self.getPossiblePositionJ2(self.Plate.magnet2Pos,self.Servo2.pos,deg2rad(-120),lastGamma=deg2rad(self.Servo2.actualAngle))
+		resServo2 = self.getPossiblePositionJ2(self.Plate.magnet2Pos,self.Servo2.pos,deg2rad(-120),lastGamma=deg2rad(0))
 		self.Servo2.setAngle(rad2deg(resServo2['BestGamma']))
+		# print("Angle Servo2:",rad2deg(resServo2['BestGamma']))
 
-		resServo3 = self.getPossiblePositionJ2(self.Plate.magnet3Pos,self.Servo3.pos,deg2rad(-240),lastGamma=deg2rad(self.Servo3.actualAngle))
+		resServo3 = self.getPossiblePositionJ2(self.Plate.magnet3Pos,self.Servo3.pos,deg2rad(-240),lastGamma=deg2rad(0))
 		self.Servo3.setAngle(rad2deg(resServo3['BestGamma']))
 
+		if self.remote:
+			if self.remoteType == 'UDP':
+				self.client.send(self.Servo1.actualAngle,self.Servo2.actualAngle,self.Servo3.actualAngle)
+			elif self.remoteType == 'Serial':
+				self.arduino.send(self.Servo1.actualAngle,self.Servo2.actualAngle,self.Servo3.actualAngle)
 
 
 	def getPossiblePositionJ2(self,magPos,servoPos,zAngle,lastGamma):

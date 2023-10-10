@@ -1,33 +1,33 @@
 import time
 from PyQt5.QtCore import *
 from PyQt5.QtGui import * 
-from UDPCommunication.client import UDPClient
+
 
 class Controle(QThread):
-	def __init__(self,compVisual,sistBallAndPlate=None,remote=True):
+	def __init__(self,compVisual,sistBallAndPlate=None):
 		QThread.__init__(self)
 		self.BallAndPlate = sistBallAndPlate
 		self.CompVisual = compVisual
-		self.remote = remote
+		# self.remote = remote
 
 
 		self.selectController = 0 # 0 - Manual, 1 - PID
 
-		self.minAngle = -15
-		self.maxAngle = +15
+		self.minAngle = -10
+		self.maxAngle = +10
 
 		self.setpoint = (0,0)
 		self.time_prev = 0 # Utilizado para calcular o dT
 
 		# Parametros pid
-		self.kp = -0.5
-		self.ki = 0
-		self.kd = 0
-		self.I = 0
-		self.e_prev = 0
-
-		if remote:
-			self.client = UDPClient() # Importa comunicacao UDP caso seja remoto
+		self.kp = 0.3
+		self.ki = 0.05
+		self.kd = 0.45
+		# self.kp = -0.2
+		# self.ki = -0
+		# self.kd = -0.05
+		self.e_prev = [0,0]
+		self.I = [0,0]
 
 
 	# def setClasses(self,compVisual):
@@ -46,44 +46,65 @@ class Controle(QThread):
 
 		return MV
 
-	def PIDController(self,measurement):
+	def PIDController(self,setpoint,measurement,i):
 		# Retirado de https://softinery.com/blog/implementation-of-pid-controller-in-python/
-
+		# Implementar um Anti Windup
 		erro = setpoint - measurement
+
 
 		P = self.kp * erro # Parametro proporcional
 		tAtual = time.time()
-		dt = tAtual - self.time_prev
-		I = self.I + self.ki*erro*(dt)
-
-		de = e - self.e_prev# Delta Erro
-		D = self.kd * (de) / dT
-
-		MV = P + I + D
+		dT = tAtual - self.time_prev
+		I = self.I[i] + self.ki*erro*(dT)
 
 
-		self.e_prev = erro
+		# self.vi[i] = self.vi[i] + self.Ts*self.w[i]
+		de = erro - self.e_prev[i]# Delta Erro
+
+		if dT == 0:# Passar D como zero caso dT seja 0
+			D = 0
+		else:
+			D = self.kd * (de) / dT
+
+		MV_PID = P + D + I
+
+
+		self.e_prev[i] = erro
 		self.time_prev = tAtual
-		return MV
+		# self.w[i] = -
+
+
+		return MV_PID,erro
 
 
 	def run(self): # runController
 		self.ThreadActive = True
+		self.e_prev_x = 0
+		self.e_prev_y = 0
 		while (self.ThreadActive):
+			if(self.selectController == 0):# Zerar PID caso mude para manual
+				self.e_prev
+				self.I
+				
+			self.measurement = (self.CompVisual.bolinha_coordenadas[0],self.CompVisual.bolinha_coordenadas[1])
+			if (self.measurement[0] == 100): # Caso a bolinha caia, desativar o controle
+				time.sleep(0.0001)
+				continue
 			# print("Controlador ativado")
 			# print(self.CompVisual.bolinha_coordenadas)
 			if self.selectController == 1: 
-				MV_x = PIDController(self.CompVisual.bolinha_coordenadas[0]) # PID no X
-				MV_y = PIDController(self.CompVisual.bolinha_coordenadas[1]) # PID no X
+				print(self.measurement)
+				MV_x,erro_x = self.PIDController(self.setpoint[0],self.measurement[0],0) # PID no X
+				MV_y,erro_y = self.PIDController(self.setpoint[1],self.measurement[1],1) # PID no X
 
 				MV_x = self.Saturador(MV_x)
 				MV_y = self.Saturador(MV_y)
 
-				if not self.remote: # Caso a comunicacao seja local, enviar o sinal de controle diretamente
-					self.BallAndPlate.setAngle(MV_x,MV_y)
 
-				else:
-					self.client.send(MV_x,MV_y)
+				self.BallAndPlate.setAngle(MV_y,MV_x)
+
+
+			time.sleep(0.02) # Delay de 20ms para combinar com a taxa de atualizacao do servo (50Hz)
 
 
 

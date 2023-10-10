@@ -3,6 +3,7 @@ from numpy import sin,cos,deg2rad
 
 def rotate3d(coords, angle_x,angle_y,angle_z):
     # coords is a 3x1 matrix with x,y,z coordinates
+    # angle in radians
     Rz = np.matrix([
           [+cos(angle_z),  -sin(angle_z),  0],
           [+sin(angle_z),  +cos(angle_z),  0],

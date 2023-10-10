@@ -14,9 +14,10 @@ class UDPClient:
 
 
 		
-	def send(self,MV_x,MV_y):
-		# start the thread to read frames from the video stream
-		self.sock.sendto( bytes(f'{MV_x};{MV_y}','utf-8'), (self.UDP_IP, self.UDP_PORT))
+	def send(self,Servo1Angle,Servo2Angle,Servo3Angle):
+		# Send angles via UDP
+		print(f"Enviado: /{Servo1Angle};{Servo2Angle};{Servo3Angle}/")
+		self.sock.sendto( bytes(f'{Servo1Angle};{Servo2Angle};{Servo3Angle}','utf-8'), (self.UDP_IP, self.UDP_PORT))
 
 
 
@@ -25,11 +26,13 @@ if __name__ == "__main__":
 	client = UDPClient()
 	a = 0
 	b = 1
+	c=2
 	try:
 		while True:
 			a+=1
 			b+=1
-			client.send(a,b)
+			c+=1
+			client.send(a,b,c)
 			# print("enviou")
 			time.sleep(1)
 	except KeyboardInterrupt:
