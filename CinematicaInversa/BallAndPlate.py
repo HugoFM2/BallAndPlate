@@ -1,8 +1,9 @@
-import CinematicaInversa.Servo,CinematicaInversa.Plate
+
 # from PyQt5.QtCore import *
 # from PyQt5.QtGui import * 
-
-from CinematicaInversa.MatrixFunctions import rotate3d, translate3d
+if __name__ != '__main__':
+	import CinematicaInversa.Servo,CinematicaInversa.Plate
+	from CinematicaInversa.MatrixFunctions import rotate3d, translate3d
 import numpy as np
 from numpy import sin,cos,deg2rad,rad2deg
 
@@ -17,6 +18,8 @@ class BallAndPlate():
 
 		self.remote = remote
 		self.remoteType = remoteType
+
+		
 
 		if self.remote:
 			if remoteType == 'UDP':
@@ -134,3 +137,28 @@ class BallAndPlate():
 		print(f'Servo1: {round(self.Servo1.angle,2)} / Servo2: {round(self.Servo2.angle,2)} / Servo3: {round(self.Servo3.angle,2)}')
 		print(f'Alfa: {round(self.Plate.xAngle,2)} / Beta: {round(self.Plate.yAngle,2)}')
 		print('------------------')
+
+
+
+if __name__ == '__main__':
+	import sys,os
+	sys.path.append(os.path.join(os.path.dirname(__file__), "..")) # Import up level directory
+	from CinematicaInversa.Servo import Servo
+	from CinematicaInversa.Plate import Plate
+	from CinematicaInversa.MatrixFunctions import rotate3d, translate3d
+	import time
+
+	Servo1 = Servo(servoIndex=0,zeroAngle=14,servoPos=np.matrix([[0,10,0]]).T,pca=None,remote=True)
+	Servo2 = Servo(servoIndex=1,zeroAngle=10,servoPos=np.matrix([[10*sin(deg2rad(120)),10*cos(deg2rad(120)),0]]).T,pca=None,remote=True)
+	Servo3 = Servo(servoIndex=2,zeroAngle=12,servoPos=np.matrix([[10*sin(deg2rad(240)),10*cos(deg2rad(240)),0]]).T,pca=None,remote=True)
+
+	Plate = Plate(height=11)
+
+	sistema = BallAndPlate(Servo1,Servo2,Servo3,Plate,remote=True,remoteType="Serial")
+
+	for i in range(0,1000):
+		angulo = round(10*sin(0.08*i),2)
+		angulo2 = round(10*cos(0.08*i),2)
+		print(f'angulo: {angulo}')
+		sistema.setAngle(angulo2,angulo)
+		time.sleep(0.02)

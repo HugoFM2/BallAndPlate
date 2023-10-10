@@ -19,6 +19,15 @@ class Controle(QThread):
 		self.setpoint = (0,0)
 		self.time_prev = 0 # Utilizado para calcular o dT
 
+
+		self.controllerHist = []
+		self.setpointHist = [[],[]]
+
+		self.posHist = [[],[]]
+		self.mvHist = [[],[]]
+		self.timeHist = []
+		self.initTime = time.time() # Tempo de inicio do programa
+
 		# Parametros pid
 		self.kp = 0.3
 		self.ki = 0.05
@@ -76,12 +85,30 @@ class Controle(QThread):
 
 		return MV_PID,erro
 
+	def updateHist(self):
+		self.setpointHist[0].append(self.setpoint[0])
+		self.setpointHist[1].append(self.setpoint[1])
+
+		self.posHist[0].append(self.CompVisual.bolinha_coordenadas[0])
+		self.posHist[1].append(self.CompVisual.bolinha_coordenadas[1])
+
+		self.timeHist.append(round(time.time() - self.initTime,2))
+		# print(self.timeHist)
+
+	def SaveHist(self,filename):
+		import pandas as pd
+		print("Salvando Arquivo")
+		dictt = {'time': self.timeHist, 'x': self.posHist[0], 'y': self.posHist[1]}
+		print(dictt)
+		df = pd.DataFrame(dictt)
+		df.to_csv(filename)
 
 	def run(self): # runController
 		self.ThreadActive = True
 		self.e_prev_x = 0
 		self.e_prev_y = 0
 		while (self.ThreadActive):
+			self.updateHist()
 			if(self.selectController == 0):# Zerar PID caso mude para manual
 				self.e_prev
 				self.I
@@ -92,7 +119,7 @@ class Controle(QThread):
 				continue
 			# print("Controlador ativado")
 			# print(self.CompVisual.bolinha_coordenadas)
-			if self.selectController == 1: 
+			elif self.selectController == 1: 
 				print(self.measurement)
 				MV_x,erro_x = self.PIDController(self.setpoint[0],self.measurement[0],0) # PID no X
 				MV_y,erro_y = self.PIDController(self.setpoint[1],self.measurement[1],1) # PID no X
@@ -103,6 +130,7 @@ class Controle(QThread):
 
 				self.BallAndPlate.setAngle(MV_y,MV_x)
 
+			
 
 			time.sleep(0.02) # Delay de 20ms para combinar com a taxa de atualizacao do servo (50Hz)
 

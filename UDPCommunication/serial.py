@@ -11,7 +11,7 @@ class SerialComm():
 
 
 	def send(self,Servo1Angle,Servo2Angle,Servo3Angle):
-		print(f"Enviado Serial: {round(Servo1Angle,2)};{round(Servo2Angle,2)};{round(Servo3Angle,2)}F")
+		# print(f"Enviado Serial: {round(Servo1Angle,2)};{round(Servo2Angle,2)};{round(Servo3Angle,2)}F")
 		self.arduino.flush()
 		data = bytes(f'{round(Servo1Angle,2)};{round(Servo2Angle,2)};{round(Servo3Angle,2)}F','utf-8')
 		self.arduino.write(data) 

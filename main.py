@@ -73,7 +73,8 @@ class ControlMainWindow(QtWidgets.QMainWindow):
 		self.ui.Save_Ball_Button.clicked.connect(lambda : self.SaveBallConfiguration())
 		print("[DEBUG] Programa Iniciado")
 
-
+		# Save historical data
+		self.ui.saveHistData_Button.clicked.connect(lambda : self.SaveHistData())
 
 	def setupUi(self):
 		self.compVisual = CompVisual()
@@ -119,6 +120,8 @@ class ControlMainWindow(QtWidgets.QMainWindow):
 
 			plate = Plate(height=11)
 
+		self.UpdateZValue(plate.height)
+
 		self.BallAndPlate = BallAndPlate(Servo1,Servo2,Servo3,plate,remote=True,remoteType="Serial")
 
 		#Controle
@@ -136,7 +139,8 @@ class ControlMainWindow(QtWidgets.QMainWindow):
 	def setManualAngles(self):
 		angle_x = self.ui.alphaManualAngleSetpoint.value()
 		angle_y = self.ui.betaManualAngleSetpoint.value()
-		# print(angle_x,angle_y)
+		self.ui.AlfaValue.setText(str(angle_x))
+		self.ui.BetaValue.setText(str(angle_y))
 		self.BallAndPlate.setAngle(angle_x,angle_y)
 
 
@@ -250,8 +254,13 @@ class ControlMainWindow(QtWidgets.QMainWindow):
 
 		self.compVisual.saveToFile('ballConfiguration.json',data)
 
+	def SaveHistData(self):
+		
+		self.Controle.SaveHist("OUT.csv")
+
 if __name__ == "__main__":
-	import sys
+	import sys,os, time
+	os.system('"pyuic5 -x GUI\\Integrado.ui -o GUI\\integrado.py') # Compila a GUI (Nao compila de primeira, é necessario executar 2x)
 	app = QtWidgets.QApplication(sys.argv)
 	# MainWindow = QtWidgets.ControlMainWindow()
 	# ui = Ui_MainWindow()
