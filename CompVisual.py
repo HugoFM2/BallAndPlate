@@ -190,7 +190,7 @@ class CompVisual(QThread):
                 image_Charuco = cv.aruco.drawDetectedMarkers(image_Charuco,corners)
             (retval,CharucoCorners,CharucoIds) = cv.aruco.interpolateCornersCharuco(corners,
                                                                   ids,image_Charuco,self.ChArUcoBoard,mtx,dist)
-            # (CharucoCorners, CharucoIds) = cv.aruco.detectBoard(image_Charuco,ids,ChArUcoBoard)
+
             if CharucoCorners is not None: # Se ao menos uma quina do charuco for detectada
 
                 if self.enableChArUcoContour:
@@ -266,6 +266,7 @@ class CompVisual(QThread):
         # Calculate FPS
         self.new_frame_time = time.time()
         deltaT = (self.new_frame_time-self.prev_frame_time)
+        fps="0"
         if deltaT != 0:
             fps = str(int( 1/(self.new_frame_time-self.prev_frame_time) ))
         self.prev_frame_time = self.new_frame_time
@@ -350,8 +351,7 @@ class CompVisual(QThread):
 
 
                 self.mainImage.emit(img_orig)
-            # cv.waitKey(1)
-            # cv.destroyAllWindows()
+
 
 
     def stop(self):

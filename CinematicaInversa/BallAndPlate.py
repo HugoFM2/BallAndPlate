@@ -1,15 +1,15 @@
 import CinematicaInversa.Servo,CinematicaInversa.Plate
-from PyQt5.QtCore import *
-from PyQt5.QtGui import * 
+# from PyQt5.QtCore import *
+# from PyQt5.QtGui import * 
 
 from CinematicaInversa.MatrixFunctions import rotate3d, translate3d
 import numpy as np
 from numpy import sin,cos,deg2rad,rad2deg
 
 
-class BallAndPlate(QThread):
+class BallAndPlate():
 	def __init__(self,Servo1,Servo2,Servo3,Plate,remote=False,remoteType='UDP'):
-		QThread.__init__(self)
+		# QThread.__init__(self)
 		self.Servo1 = Servo1
 		self.Servo2 = Servo2
 		self.Servo3 = Servo3
@@ -44,7 +44,7 @@ class BallAndPlate(QThread):
 
 		resServo2 = self.getPossiblePositionJ2(self.Plate.magnet2Pos,self.Servo2.pos,deg2rad(-120),lastGamma=deg2rad(0))
 		self.Servo2.setAngle(rad2deg(resServo2['BestGamma']))
-		# print("Angle Servo2:",rad2deg(resServo2['BestGamma']))
+
 
 		resServo3 = self.getPossiblePositionJ2(self.Plate.magnet3Pos,self.Servo3.pos,deg2rad(-240),lastGamma=deg2rad(0))
 		self.Servo3.setAngle(rad2deg(resServo3['BestGamma']))
@@ -57,8 +57,8 @@ class BallAndPlate(QThread):
 
 
 	def getPossiblePositionJ2(self,magPos,servoPos,zAngle,lastGamma):
-		#Obtem as 2 respostas possiveis da junta 2 dado a posicao desejada e a posicao do servo
-		# Para isso, o servo é "desrotacionado" para aplicar a equacao apenas em 2 dimensoes, ignorando o eixo x
+		# Obtem as 2 respostas possiveis da junta 2 dado a posicao desejada e a posicao do servo
+		# Para isso, o servo é "desrotacionado" para aplicar a equacao apenas em 2 dimensoes, ignorando o eixo do motor
 		
 		#Desrotacionando os pontos
 		unrotatedMagPos = rotate3d(magPos,0,0,-zAngle)
@@ -92,8 +92,7 @@ class BallAndPlate(QThread):
 		Gamma2 = np.arcsin((z_2-z2)/7)
 
 		
-		if (abs(lastGamma-Gamma1) < abs(lastGamma-Gamma2)): # 
-		# if Gamma1 < Gamma2:
+		if (abs(lastGamma-Gamma1) < abs(lastGamma-Gamma2)): 
 			bestPos = np.matrix([[0],
 						  [res1[0]],
 						  [res1[1]]])
@@ -101,8 +100,7 @@ class BallAndPlate(QThread):
 			otherPos = np.matrix([[0],
 						  [res2[0]],
 						  [res2[1]]])  
-			# print('---------') 
-			# print(Gamma1)
+
 			# Rotaciona novamente as posicoes para obter a posicao real
 			bestPos = rotate3d(bestPos,angle_x=deg2rad(0),angle_y=deg2rad(0),angle_z=zAngle)
 			otherPos = rotate3d(otherPos,angle_x=deg2rad(0),angle_y=deg2rad(0),angle_z=zAngle)    
@@ -119,8 +117,8 @@ class BallAndPlate(QThread):
 			otherPos = np.matrix([[0],
 						  [res1[0]],
 						  [res1[1]]])   
-			# print('---------') 
-			# print(rad2deg(Gamma2))
+
+
 			# Rotaciona novamente as posicoes para obter a posicao real
 			bestPos = rotate3d(bestPos,angle_x=deg2rad(0),angle_y=deg2rad(0),angle_z=zAngle)
 			otherPos = rotate3d(otherPos,angle_x=deg2rad(0),angle_y=deg2rad(0),angle_z=zAngle)    
@@ -131,7 +129,7 @@ class BallAndPlate(QThread):
 
 
 
-	def printStatus(self):
+	def __str__(self):
 		print('------------------')
 		print(f'Servo1: {round(self.Servo1.angle,2)} / Servo2: {round(self.Servo2.angle,2)} / Servo3: {round(self.Servo3.angle,2)}')
 		print(f'Alfa: {round(self.Plate.xAngle,2)} / Beta: {round(self.Plate.yAngle,2)}')
