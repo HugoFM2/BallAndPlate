@@ -1,7 +1,14 @@
 # -*- coding: utf-8 -*-
 from PyQt5 import QtCore, QtGui, QtWidgets
-from CompVisual import CompVisual
-from Controle import Controle
+
+#Thread
+	# from CompVisual import CompVisual
+	# from Controle import Controle
+
+# NoThread
+
+from NoThread.CompVisual import CompVisual
+from NoThread.Controle import Controle
 
 from CinematicaInversa.BallAndPlate import BallAndPlate
 from CinematicaInversa.Servo import Servo
@@ -40,7 +47,7 @@ class ControlMainWindow(QtWidgets.QMainWindow):
 		#Options for control selection
 		self.ui.ControlType_Off.clicked.connect(lambda:self.enableControlType(0))
 		self.ui.ControlType_PID.clicked.connect(lambda:self.enableControlType(1))
-		self.ui.ControlType_LQR.clicked.connect(lambda:self.enableControlType(2))
+		# self.ui.ControlType_LQR.clicked.connect(lambda:self.enableControlType(2))
 
 
 
@@ -73,39 +80,19 @@ class ControlMainWindow(QtWidgets.QMainWindow):
 		self.ui.Save_Ball_Button.clicked.connect(lambda : self.SaveBallConfiguration())
 		print("[DEBUG] Programa Iniciado")
 
+		# Save Control Config
+		self.ui.SaveControlConfig.clicked.connect(lambda : self.SaveControlConfig())
+
 		# Save historical data
 		self.ui.saveHistData_Button.clicked.connect(lambda : self.SaveHistData())
 
 	def setupUi(self):
-		self.compVisual = CompVisual()
-		
-
-		self.compVisual.start()
-		self.compVisual.mainImage.connect(self.ImageUpdateSlot)
-		self.compVisual.maskImage.connect(self.BallMaskUpdate)
-		self.compVisual.ArucoImage.connect(self.ArucoImageUpdate)
-
-		self.compVisual.x_ball.connect(self.UpdateXValue)
-		self.compVisual.y_ball.connect(self.UpdateYValue)
-		self.compVisual.z_ball.connect(self.UpdateZValue)
-
-		#Conecta valores de yaw pitch e roll
-		self.compVisual.eulerAngles_Plate.connect(self.UpdatePlateAngles)
-
-		self.enableSelectPage(0) # Define a pagina inicial como ball selector
-		self.enableSelectSurfacePage(0) # Define a pagina inicial como ball selector
-		self.LoadBallConfiguration() # Carrega o arquivo ballConfiguration
-
-		# Setar valores iniciais das checkboxs
-		self.ui.enableArUcoDetection.setChecked(True)
-		self.ui.enableUndistortion.setChecked(True)
-
 		# #CinematicaInversa
 		if self.remote:
 			Servo1 = Servo(servoIndex=22,zeroAngle=1,servoPos=np.matrix([[0,10,0]]).T,remote=True)
 			Servo2 = Servo(servoIndex=1,zeroAngle=0,servoPos=np.matrix([[10*sin(deg2rad(120)),10*cos(deg2rad(120)),0]]).T,remote=True)
 			Servo3 = Servo(servoIndex=2,zeroAngle=0,servoPos=np.matrix([[10*sin(deg2rad(240)),10*cos(deg2rad(240)),0]]).T,remote=True)
-			plate = Plate(height=11)
+			plate = Plate(height=10)
 
 
 
@@ -124,16 +111,55 @@ class ControlMainWindow(QtWidgets.QMainWindow):
 
 		self.BallAndPlate = BallAndPlate(Servo1,Servo2,Servo3,plate,remote=True,remoteType="Serial")
 
-		#Controle
-		self.Controle = Controle(self.compVisual,self.BallAndPlate)
-		self.Controle.start()
+		#Controle Thread
+		# self.Controle = Controle(self.compVisual,self.BallAndPlate)
+		# self.Controle.start()
+
+		# Controle No Thread
+		self.Controle = Controle(self.BallAndPlate)
+
+		self.compVisual = CompVisual(self.Controle)
+		
+
+		self.compVisual.start()
+		self.compVisual.mainImage.connect(self.ImageUpdateSlot)
+		self.compVisual.maskImage.connect(self.BallMaskUpdate)
+		self.compVisual.ArucoImage.connect(self.ArucoImageUpdate)
+
+		self.compVisual.x_ball.connect(self.UpdateXValue)
+		self.compVisual.y_ball.connect(self.UpdateYValue)
+		self.compVisual.z_ball.connect(self.UpdateZValue)
+
+
+		self.compVisual.angles.connect(self.UpdateAngles)
+
+		#Conecta valores de yaw pitch e roll
+		# self.compVisual.eulerAngles_Plate.connect(self.UpdatePlateAngles)
+
+		self.enableSelectPage(0) # Define a pagina inicial como ball selector
+		self.enableSelectSurfacePage(0) # Define a pagina inicial como ball selector
+		self.LoadBallConfiguration() # Carrega o arquivo ballConfiguration
+		self.LoadInitialPIDParameters() # Carrega os parametros iniciais do PID
+
+		# Setar valores iniciais das checkboxs
+		self.ui.enableArUcoDetection.setChecked(True)
+		self.ui.enableUndistortion.setChecked(True)
 
 
 
 	def setPIDParameters(self):
-		self.Controle.kp = self.ui.KpValue.value()
-		self.Controle.ki = self.ui.KiValue.value()
-		self.Controle.kd = self.ui.KdValue.value()
+		# Setando ganhos do X
+		self.Controle.kp[0] = self.ui.Kp_X_Value.value()
+		self.Controle.ki[0] = self.ui.Ki_X_Value.value()
+		self.Controle.kd[0] = self.ui.Kd_X_Value.value()
+
+		# Setando Ganhos do Y
+		self.Controle.kp[1] = self.ui.Kp_Y_Value.value()
+		self.Controle.ki[1] = self.ui.Ki_Y_Value.value()
+		self.Controle.kd[1] = self.ui.Kd_Y_Value.value()	
+
+		self.Controle.e_prev = [0,0]
+		self.Controle.I = [0,0]
 
 			
 	def setManualAngles(self):
@@ -211,13 +237,20 @@ class ControlMainWindow(QtWidgets.QMainWindow):
 		print(z_value)
 		self.ui.Qlabel_posZ.setText(str(z_value))
 
-	def UpdatePlateAngles(self,dici):
-		# print("aa")
-		ChArUcoAngles = mf.rVecToEulerList(dici["ChArUco"]["rvec"])
-		# euler_ID0 = Rotation.from_rotvec(np.array(dici["0"]["rvec"])).as_euler('xyz',degrees=True)
-		self.ui.Yaw_Angle.setText(f'{ChArUcoAngles[0]:6.2f}')
-		self.ui.Pitch_Angle.setText(f'{ChArUcoAngles[1]:6.2f}')
-		self.ui.Roll_Angle.setText(f'{ChArUcoAngles[2]:6.2f}')
+	def UpdateAngles(self,angles_value):
+		# print("ANGLES_VALUE",angles_value)
+		self.ui.AlfaValue.setText(str(round(angles_value[0],2)))
+		self.ui.BetaValue.setText(str(round(angles_value[1],2)))
+
+		
+
+	# def UpdatePlateAngles(self,dici):
+	# 	# print("aa")
+	# 	ChArUcoAngles = mf.rVecToEulerList(dici["ChArUco"]["rvec"])
+	# 	# euler_ID0 = Rotation.from_rotvec(np.array(dici["0"]["rvec"])).as_euler('xyz',degrees=True)
+	# 	self.ui.Yaw_Angle.setText(f'{ChArUcoAngles[0]:6.2f}')
+	# 	self.ui.Pitch_Angle.setText(f'{ChArUcoAngles[1]:6.2f}')
+	# 	self.ui.Roll_Angle.setText(f'{ChArUcoAngles[2]:6.2f}')
   
 
 	def convert_cv_qt(self, cv_img):
@@ -252,7 +285,20 @@ class ControlMainWindow(QtWidgets.QMainWindow):
 		data["Erode"] = self.compVisual.erode_Ball
 		data["Dilate"] = self.compVisual.dilate_Ball
 
-		self.compVisual.saveToFile('ballConfiguration.json',data)
+		self.compVisual.saveToFile('./ConfigFiles/ballConfiguration.json',data)
+
+	def LoadInitialPIDParameters(self):
+		self.ui.Kp_X_Value.setValue(self.Controle.kp[0])
+		self.ui.Kp_Y_Value.setValue(self.Controle.kp[1])
+
+		self.ui.Ki_X_Value.setValue(self.Controle.ki[0])
+		self.ui.Ki_Y_Value.setValue(self.Controle.ki[1])
+
+		self.ui.Kd_X_Value.setValue(self.Controle.kd[0])
+		self.ui.Kd_Y_Value.setValue(self.Controle.kd[1])
+
+	def SaveControlConfig(self):
+		self.Controle.saveControlConfig("./ConfigFiles/ControlConfig.json")
 
 	def SaveHistData(self):
 		

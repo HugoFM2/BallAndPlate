@@ -4,7 +4,7 @@ from CinematicaInversa.MatrixFunctions import rotate3d, translate3d
 
 class Plate:
     def __init__(self,height):
-        self.pointsDistance = 11 # Distance of points in relation to center, in cm
+        self.pointsDistance = 10 # Distance of points in relation to center, in cm
         self.anglePoints = 120 # Angle between points
         self.height = height
         

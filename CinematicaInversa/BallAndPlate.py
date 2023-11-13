@@ -1,6 +1,6 @@
 
-# from PyQt5.QtCore import *
-# from PyQt5.QtGui import * 
+from PyQt5.QtCore import *
+from PyQt5.QtGui import * 
 if __name__ != '__main__':
 	import CinematicaInversa.Servo,CinematicaInversa.Plate
 	from CinematicaInversa.MatrixFunctions import rotate3d, translate3d
@@ -15,6 +15,8 @@ class BallAndPlate():
 		self.Servo2 = Servo2
 		self.Servo3 = Servo3
 		self.Plate = Plate
+
+
 
 		self.remote = remote
 		self.remoteType = remoteType
@@ -56,7 +58,9 @@ class BallAndPlate():
 			if self.remoteType == 'UDP':
 				self.client.send(self.Servo1.actualAngle,self.Servo2.actualAngle,self.Servo3.actualAngle)
 			elif self.remoteType == 'Serial':
-				self.arduino.send(self.Servo1.actualAngle,self.Servo2.actualAngle,self.Servo3.actualAngle)
+				self.arduino.send(self.Servo2.actualAngle,self.Servo3.actualAngle,self.Servo1.actualAngle)
+
+
 
 
 	def getPossiblePositionJ2(self,magPos,servoPos,zAngle,lastGamma):

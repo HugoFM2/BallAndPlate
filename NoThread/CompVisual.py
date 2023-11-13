@@ -5,7 +5,7 @@ import mathFunctions as mf
 import time
 import matplotlib.pyplot as plt
 from imutils.video import WebcamVideoStream
-
+from NoThread.Controle import Controle
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import * 
@@ -16,15 +16,37 @@ class CompVisual(QThread):
     mainImage = pyqtSignal(np.ndarray)
     # cap = cv.VideoCapture(-1) # Inicia devagar, solucao: https://answers.opencv.org/question/215586/why-does-videocapture1-take-so-long/
     # cap = cv.VideoCapture(0, cv.CAP_DSHOW)
+    cap = cv.VideoCapture(0)
+
+    cap.set(cv.CAP_PROP_BUFFERSIZE, 3)
 
     #Setting resolution
-    # cap.set(cv.CAP_PROP_FRAME_WIDTH, 640)
-    # cap.set(cv.CAP_PROP_FRAME_HEIGHT, 480)
-    # cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+    # print(cv.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+    cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc('m', 'j', 'p', 'g'))
+    cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+    
+    # cap.set(cv.CAP_PROP_FPS, 60)
+    # cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
+    # cap.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv.CAP_PROP_FRAME_HEIGHT, 480)
+    cap.set(cv.CAP_PROP_BUFFERSIZE, 3)
+
+    
+    
+    # cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc('m', 'j', 'p', 'g'))
+    
+
+    print("FOURCC:",cap.get(cv.CAP_PROP_FOURCC))
+    print("FPS:",cap.get(cv.CAP_PROP_FPS))
+    print("WIDTH:",cv.CAP_PROP_FRAME_WIDTH)
+    print("BUFFERSIZE:",cv.CAP_PROP_BUFFERSIZE)
+    
+
 
     #CharUcoDefinition parameters
     ArUcoDict = cv.aruco.getPredefinedDictionary(cv.aruco.DICT_4X4_50)
-    ChArUcoBoard = cv.aruco.CharucoBoard((5, 5), 360, 300, ArUcoDict) # Unidade está em 1/10mm, ou seja 360 = 36mm
+    ChArUcoBoard = cv.aruco.CharucoBoard((5, 5), 0.0360, 0.03, ArUcoDict) # Unidade está em metros
     # ChArUcoBoard = cv.aruco.CharucoBoard((3, 3), 600, 500, ChArUcoDict,np.array([2,3,4,5])) # Para o Caso de DiamondBoard
     # CharucoParams = cv.aruco.CharucoParameters(mtx,dist)
     # print(CharucoParams)
@@ -35,7 +57,8 @@ class CompVisual(QThread):
     detector = cv.aruco.CharucoDetector(ChArUcoBoard,detectorParams=detectorParams)
 
     #Detector Aruco
-    marker_size=500 # in 1/10mm
+    # marker_size=500 # in 1/10mm
+    marker_size=0.0500 # in m
     marker_points = np.array([[-marker_size / 2, marker_size / 2, 0],
                               [marker_size / 2, marker_size / 2, 0],
                               [marker_size / 2, -marker_size / 2, 0],
@@ -60,6 +83,8 @@ class CompVisual(QThread):
     enableBallContour = False
     x_ball,y_ball,z_ball = pyqtSignal(float),pyqtSignal(float),pyqtSignal(float)
 
+    angles = pyqtSignal(tuple)
+
     enableUndistortion = True
 
     enableArUcoDetection = True
@@ -69,6 +94,10 @@ class CompVisual(QThread):
 
     bolinha_coordenadas = (0,0)
     bolinha_detectada = False
+
+    def __init__(self,controle):
+        QThread.__init__(self)
+        self.controle = controle
 
 
         
@@ -159,7 +188,7 @@ class CompVisual(QThread):
             # print('________')
             rvec,_= cv.Rodrigues(rmat)
             # print(rvec)
-            image = cv.drawFrameAxes(image,mtx,dist,rvec,tvec,500,3) # Desenha os eixos
+            image = cv.drawFrameAxes(image,mtx,dist,rvec,tvec,0.05,3) # Desenha os eixos
             # print(rvec)
             return rvec,tvec
         return None,[0]
@@ -193,8 +222,9 @@ class CompVisual(QThread):
 
             if CharucoCorners is not None: # Se ao menos uma quina do charuco for detectada
 
-                if self.enableChArUcoContour:
-                    image_Charuco = cv.aruco.drawDetectedCornersCharuco(image_Charuco,CharucoCorners,CharucoIds)
+                # DEBUG -> Desenha os ids dos charucos
+                # if self.enableChArUcoContour:
+                    # image_Charuco = cv.aruco.drawDetectedCornersCharuco(image_Charuco,CharucoCorners,CharucoIds)
 
 
                 valid,rvec,tvec = cv.aruco.estimatePoseCharucoBoard(CharucoCorners,CharucoIds,self.ChArUcoBoard,mtx,dist,
@@ -205,7 +235,7 @@ class CompVisual(QThread):
                 
                 if valid: # Detectou o board
                     if self.enableChArUcoContour:
-                        image_Charuco = cv.drawFrameAxes(image_Charuco,mtx,dist,rvec,tvec,360,3) # Desenha os eixos
+                        image_Charuco = cv.drawFrameAxes(image_Charuco,mtx,dist,rvec,tvec,0.072,3) # Desenha os eixos
 
 
                     # Emite o angulo detectado para a GUI
@@ -214,17 +244,22 @@ class CompVisual(QThread):
 
 
                     # Encontra o ponto no centro, localizado a 9cm do eixo superior esquerdo
-                    ponto_centro = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=90,distanceY=90)
+                    ponto_centro = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=0.090,distanceY=0.090)
                     # print(f'Ponto Centro: {ponto_centro}')
 
-                    image_Charuco = cv.circle(image_Charuco, tuple(ponto_centro), 10, (255, 255, 0), thickness=2)
+                    # image_Charuco = cv.circle(image_Charuco, tuple(ponto_centro), 10, (255, 255, 0), thickness=2)
                         
 
                     # Definindo os pontos do quadrado em 3d
-                    ponto_SuperiorEsquerdo = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=0-50,distanceY=0-50.3) 
-                    ponto_InferiorEsquerdo = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=0-50,distanceY=180+49.7) 
-                    ponto_SuperiorDireito = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=180+50,distanceY=0-50.3)
-                    ponto_InferiorDireito = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=180+50,distanceY=180+49.7) 
+                    # ponto_SuperiorEsquerdo = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=0-50,distanceY=0-50.3) 
+                    # ponto_InferiorEsquerdo = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=0-50,distanceY=180+49.7) 
+                    # ponto_SuperiorDireito = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=180+50,distanceY=0-50.3)
+                    # ponto_InferiorDireito = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=180+50,distanceY=180+49.7) 
+                    
+                    ponto_SuperiorEsquerdo = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=0-0.060,distanceY=0-0.06) 
+                    ponto_InferiorEsquerdo = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=0-0.060,distanceY=0.180+0.06) 
+                    ponto_SuperiorDireito = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=0.180+0.060,distanceY=0-0.06)
+                    ponto_InferiorDireito = mf.convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=0.180+0.060,distanceY=0.180+0.06) 
                     pontos_src = np.array([ponto_SuperiorEsquerdo,ponto_InferiorEsquerdo,ponto_SuperiorDireito,ponto_InferiorDireito])
 
                     w,h = image_Charuco.shape[:2]
@@ -234,12 +269,23 @@ class CompVisual(QThread):
 
                     homog, mask = cv.findHomography(pontos_src, dest_pts, 0)
 
-                    # image_Charuco = cv.circle(image_Charuco, tuple(ponto_SuperiorEsquerdo), 10, (255, 0, 0), thickness=2)
-                    # image_Charuco = cv.circle(image_Charuco, tuple(ponto_InferiorEsquerdo), 10, (0, 255, 0), thickness=2)
-                    # image_Charuco = cv.circle(image_Charuco, tuple(ponto_SuperiorDireito), 10, (0, 0, 255), thickness=2)
-                    # image_Charuco = cv.circle(image_Charuco, tuple(ponto_InferiorDireito), 10,  (255, 255, 0), thickness=2)
+
+                    # # image_Charuco = cv.circle(image_Charuco, (320,240), 10, (255, 255, 255), thickness=-1) # circulo no vcentro, para debug
+                    # image_Charuco = cv.circle(image_Charuco, tuple(ponto_SuperiorEsquerdo), 10, (255, 0, 255), thickness=-1) # Rosa
+                    # image_Charuco = cv.circle(image_Charuco, tuple(ponto_InferiorEsquerdo), 10, (0, 255, 0), thickness=-1)
+                    # image_Charuco = cv.circle(image_Charuco, tuple(ponto_SuperiorDireito), 10, (0, 0, 255), thickness=-1)
+                    # image_Charuco = cv.circle(image_Charuco, tuple(ponto_InferiorDireito), 10,  (255, 255, 255), thickness=-1)
+
+
+                    # # DESENHA LINHA, APENAS PARA RELATORIO
+                    # image_Charuco= cv.line(image_Charuco, tuple(ponto_SuperiorEsquerdo), tuple(ponto_InferiorEsquerdo), (0,255,255), thickness=2) 
+                    # image_Charuco= cv.line(image_Charuco, tuple(ponto_SuperiorEsquerdo), tuple(ponto_SuperiorDireito), (0,255,255), thickness=2) 
+                    # image_Charuco= cv.line(image_Charuco, tuple(ponto_SuperiorDireito), tuple(ponto_InferiorDireito), (0,255,255), thickness=2) 
+                    # image_Charuco= cv.line(image_Charuco, tuple(ponto_InferiorDireito), tuple(ponto_InferiorEsquerdo), (0,255,255), thickness=2) 
+
                       
                     corrected_image_Charuco = cv.warpPerspective(image, homog, (600, 600))
+                    # corrected_image_Charuco = image_Charuco.copy()
                     if self.pageSelect == 1:
                         # Desenhando o circulo externo, de 28cm
                         corrected_image_Charuco = cv.circle(corrected_image_Charuco, (int(600/2),int(600/2)), 300, (255, 255, 0), thickness=2)
@@ -273,25 +319,29 @@ class CompVisual(QThread):
         cv.putText(image, fps, (7, 70), self.font, 3, (100, 255, 0), 3, cv.LINE_AA)
         return image
 
+
     def run(self):
-        vs = WebcamVideoStream(src=0).start()
+        # vs = WebcamVideoStream(src=0).start()
         self.ThreadActive = True
         # ret, mtx, dist  = self.loadCameraCallibration("CallibrationDataRPI.json") # Define os parametros intrínsecos da camera RPI
         ret, mtx, dist  = self.loadCameraCallibration("./ConfigFiles/CallibrationDataC270.json") # Define os parametros intrínsecos da camera C270
-        # ret, img = self.cap.read()
-        # if ret:
-        #     h, w, _ = img.shape
+        ret, img = self.cap.read()
+        if ret:
+            h, w, _ = img.shape
 
         map1, map2 = cv.initUndistortRectifyMap(mtx, dist, None, None, (640,480),
                 cv.CV_16SC2) # Getting the undistortion map
 
+
+        ret, img = self.cap.read()
         while self.ThreadActive:
             actTime = time.time()
             # print(time.time())
-            img_orig = vs.read()
+            # img_orig = vs.read()
+            
 
-            if True:
-
+            if ret:
+                success, img_orig = self.cap.read()
 
                 h, w, _ = img_orig.shape # Height, width da imagem original da camera
 
@@ -322,7 +372,7 @@ class CompVisual(QThread):
                             # Como a imagem possui 600x600, redimensionar a posicao da bolinha para atender esses requisitos
                             # Modificando as coordenadas para o centro da superficie ser o ponto (0,0)
                             x_bolinha_coord = (x_bolinha/2 - 150)/10 # Divide por 10 para ser em metros
-                            y_bolinha_coord = (y_bolinha/2 - 150)/10 # Divide por 10 para ser em metros
+                            y_bolinha_coord = -(y_bolinha/2 - 150)/10 # Divide por 10 para ser em metros
                             if (x_bolinha_coord**2 + y_bolinha_coord**2) < 22500: # Caso a Bolinha esteja no Raio
 
                                 self.bolinha_coordenadas = (x_bolinha_coord,y_bolinha_coord) # Divide por 100 para ficar em metros
@@ -344,16 +394,29 @@ class CompVisual(QThread):
                             self.x_ball.emit(100)
                             self.y_ball.emit(100) 
 
-                        self.ArucoImage.emit(cv.resize(corrected_image_Charuco.copy(),(384,384))) # Redimensiona a imagem para o tamanho da GUI)
+                        self.ArucoImage.emit(cv.resize(corrected_image_Charuco.copy(),(512,512))) # Redimensiona a imagem para o tamanho da GUI)
+                
+
+
+
+
+                
+
+
+                # Aplica o Controle
+                self.controle.runController(self.bolinha_coordenadas)
+                
+                # Obtem valores de alfa e beta
+                self.angles.emit( (self.controle.BallAndPlate.Plate.xAngle, 
+                                  self.controle.BallAndPlate.Plate.yAngle) )
                 
 
                 # Calculate FPS
-                self.CalculateFPS(img_orig)
-
+                # self.CalculateFPS(img_orig)
 
                 self.mainImage.emit(img_orig)
-                print(f"elapsed Time: {time.time() - actTime}")
 
+                # print(f"elapsed Time: {time.time() - actTime}") # DEBUG
 
     def stop(self):
         print("PAROU")

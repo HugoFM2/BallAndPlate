@@ -32,14 +32,15 @@ class Controle(QThread):
 		self.kp = 0.3
 		self.ki = 0.05
 		self.kd = 0.45
-		# self.kp = -0.2
-		# self.ki = -0
-		# self.kd = -0.05
 		self.e_prev = [0,0]
 		self.I = [0,0]
 
-
-	# def setClasses(self,compVisual):
+		# Parametros LQR
+		self.K = [-24.1469,  -18.5755,   42.3216,    9.4680,    2.2361] # Ganhos para x e y
+		
+		# Posicoes anteriores para calculo da velocidade
+		self.p_prev = [0,0] # Posicoes anteriores de x e y
+		self.ang_prev = [0,0] # Posicoes anteriores de alfa e beta
 
 
 	def setSetpoint(self,x,y):
@@ -54,6 +55,43 @@ class Controle(QThread):
 			MV = self.maxAngle
 
 		return MV
+
+
+	def LQRController(self,setpoint,measurement,angle,i):
+		''' PARAMETROS QUE EU PRECISO TER (Obtenho a partir do calculo com o passo anterior)
+		x
+		v_x
+		alfa -> PRECISO PEGAR O ALFA/BETA
+		v_alfa
+		'''
+
+		erro = setpoint - measurement
+		pos_atual = setpoint # Para facilitar a leitura
+		ang_atual = angle[i]
+
+		# Calculo do dT para calcular velocidades
+		tAtual = time.time()
+		dT = tAtual - self.time_prev
+
+		vel_ang = (ang_atual - ang_prev[i])/dT
+		vel_pos = (pos_atual - p_prev[i])/dT # Delta P / deltaT
+		# k[0]*pos_atual
+		# k[1]*vel_pos
+		# k[2]*alfa
+		# k[3]*vel_ang
+		# k[4]*e # ERRO
+
+		# vetor deitado, vezes um em pé, ai precisaria só somar
+		MV_LQR = - (k[0]*x + k[1]*v_x + k[2]*alfa +k[3]*v_alfa + k[4]*e) # usar o menos caso a acao seja contraria
+
+		# a IDENTIDADE R JA esta passando direto na soma do k[4]*e
+
+		# Definindo vetores anteriores
+		self.time_prev = tAtual
+		self.p_prev[i] = measurement
+		self.ang_prev[i] = angle
+
+		return MV_LQR,erro
 
 	def PIDController(self,setpoint,measurement,i):
 		# Retirado de https://softinery.com/blog/implementation-of-pid-controller-in-python/
@@ -80,7 +118,6 @@ class Controle(QThread):
 
 		self.e_prev[i] = erro
 		self.time_prev = tAtual
-		# self.w[i] = -
 
 
 		return MV_PID,erro
@@ -122,15 +159,20 @@ class Controle(QThread):
 			elif self.selectController == 1: 
 				print(self.measurement)
 				MV_x,erro_x = self.PIDController(self.setpoint[0],self.measurement[0],0) # PID no X
-				MV_y,erro_y = self.PIDController(self.setpoint[1],self.measurement[1],1) # PID no X
+				MV_y,erro_y = self.PIDController(self.setpoint[1],self.measurement[1],1) # PID no Y
 
 				MV_x = self.Saturador(MV_x)
 				MV_y = self.Saturador(MV_y)
 
 
-				self.BallAndPlate.setAngle(MV_y,MV_x)
+				self.BallAndPlate.setAngle(MV_y,MV_x) # Alfa e beta desejado
 
-			
+			elif self.selectController == 2: # Controlador LQR
+				print(self.measurement)
+				MV_x,erro_x = self.LQRController(self.setpoint[0],self.measurement[0],0) # LQR no X
+
+
+
 
 			time.sleep(0.02) # Delay de 20ms para combinar com a taxa de atualizacao do servo (50Hz)
 

@@ -1,11 +1,11 @@
 # import the necessary packages
 from threading import Thread
-import cv2
+import cv2 as cv
 class WebcamVideoStream:
 	def __init__(self, src=0):
 		# initialize the video camera stream and read the first frame
 		# from the stream
-		self.stream = cv2.VideoCapture(src)
+		self.stream = cv.VideoCapture(src, cv.CAP_DSHOW)
 		self.stream.set(cv.CV_CAP_PROP_FRAME_WIDTH, 640)
 		self.stream.set(cv.CV_CAP_PROP_FRAME_HEIGHT, 480)
 
@@ -35,3 +35,14 @@ class WebcamVideoStream:
 	def stop(self):
 		# indicate that the thread should be stopped
 		self.stopped = True
+
+
+if __name__ == '__main__':
+	from imutils.video import WebcamVideoStream
+	vs = WebcamVideoStream(src=1).start()
+	while True:
+		img_orig = vs.read()
+		cv.imshow("aaa", img_orig) 
+		  
+		if cv.waitKey(1) == 27: 
+			break  # esc to quit

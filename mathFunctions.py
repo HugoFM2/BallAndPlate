@@ -65,7 +65,11 @@ def TranslatePoint(ponto,rotVec,distanceX=0, distanceY=0,distanceZ=0):
     return ponto_trasladado
 
 
-
+def Translate(ponto,distanceX=0,distanceY = 0,distanceZ = 0):
+  T = np.matrix([distanceX,distanceY,distanceZ]).T
+  ponto_trasladado = ponto + T
+  # print("PONTO TRASLADADO",type(ponto),ponto)
+  return ponto_trasladado
 
 
 def rVecToEulerList(rvec):
@@ -77,14 +81,29 @@ def rVecToEulerList(rvec):
 		return [0,0,0]
 
 
-def convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=0, distanceY=0,distanceZ=0):
-    ponto_3d = tvec.flatten()
+# def convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=0, distanceY=0,distanceZ=0): # ORIGINAL E FUNCIONANDO
+#     ponto_3d = tvec.flatten()
 
-    # Por algum motivo, 900000 = 9cm, entao para facilitar, sera feita uma conversao para mm, para o argumento ser em mm
-    point_transformed = TranslatePoint(ponto_3d,rvec,distanceX=distanceX*10000,distanceY=distanceY*10000,distanceZ=distanceZ*10000) 
+#     # Por algum motivo, 900000 = 9cm, entao para facilitar, sera feita uma conversao para mm, para o argumento ser em mm
+#     point_transformed = TranslatePoint(ponto_3d,rvec,distanceX=distanceX*10000,distanceY=distanceY*10000,distanceZ=distanceZ*10000) 
 
 
-    ponto_2d,_ = cv.projectPoints(point_transformed/1000,rvec,tvec,mtx,dist)
-    ponto_2d = ponto_2d.flatten().astype(int)
-    return ponto_2d
+#     ponto_2d,_ = cv.projectPoints(point_transformed/1000,rvec,tvec,mtx,dist)
+#     ponto_2d = ponto_2d.flatten().astype(int)
+#     return ponto_2d
+
+
+def convert3DPointTo2DAndTranslate(rvec,tvec,mtx,dist,distanceX=0, distanceY=0,distanceZ=0):  # Distancia em metros
+  ponto_central = np.matrix([0,0,0]).T
+
+
+
+  point_translated = Translate(ponto_central,distanceX=distanceX,distanceY=distanceY,distanceZ=distanceZ)
+  point_translated = np.asmatrix(point_translated)
+
+  ponto_2d,_ = cv.projectPoints(point_translated,rvec,tvec,mtx,dist)
+  ponto_2d = ponto_2d.flatten().astype(int)
+  # print("Ponto2D:",ponto_2d)
+  return ponto_2d
+
 
