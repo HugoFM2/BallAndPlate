@@ -3,7 +3,7 @@ import numpy as np
 import imutils
 import mathFunctions as mf
 import time
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from imutils.video import WebcamVideoStream
 from NoThread.Controle import Controle
 

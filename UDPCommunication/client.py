@@ -2,7 +2,7 @@ import socket
 import time
 
 # import the necessary packages
-from threading import Thread
+# from threading import Thread
 import cv2
 class UDPClient:
 	def __init__(self):
