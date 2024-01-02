@@ -24,6 +24,7 @@ class Servo:
 			self.max_imp = 2500
 
 			self.pca.servo[servoIndex].set_pulse_width_range(self.min_imp , self.max_imp)
+			
 		else:
 			from UDPCommunication.client import UDPClient
 		

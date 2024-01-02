@@ -160,6 +160,7 @@ class ControlMainWindow(QtWidgets.QMainWindow):
 
 		self.Controle.e_prev = [0,0]
 		self.Controle.I = [0,0]
+		print(f"Parametros PID Setados! {self.Controle.kp[0],self.Controle.ki[0],self.Controle.kd[0]}")
 
 			
 	def setManualAngles(self):
@@ -184,6 +185,9 @@ class ControlMainWindow(QtWidgets.QMainWindow):
 		self.Controle.selectController = num
 		if num == 1:
 			print("Controle PID Habilitado!")
+			self.Controle.e_prev = [0,0]
+			self.Controle.I = [0,0]
+			self.Controle.ClearHist()
 
 	def enableSelectSurfacePage(self,indexPage):
 		self.ui.JanelasModoSurface.setCurrentIndex(indexPage)

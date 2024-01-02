@@ -17,6 +17,11 @@ class BallAndPlate():
 		self.Plate = Plate
 
 
+		self.J2_1 = None
+		self.J2_2 = None
+		self.J2_3 = None
+
+
 
 		self.remote = remote
 		self.remoteType = remoteType
@@ -29,7 +34,10 @@ class BallAndPlate():
 				self.client = UDPClient() # Importa comunicacao UDP caso seja remoto
 			if remoteType == 'Serial':
 				from UDPCommunication.serial import SerialComm 
-				self.arduino = SerialComm('COM8')
+				self.arduino = SerialComm('COM8') # Computador
+				# self.arduino = SerialComm('COM4') # Notebook
+			if remoteType == None:
+				self.arduino = None
 
 
 
@@ -45,13 +53,16 @@ class BallAndPlate():
 
 		# Obtem a melhor resposta para a junta J2 e ajusta o angulo do servo
 		resServo1 = self.getPossiblePositionJ2(self.Plate.magnet1Pos,self.Servo1.pos,0,lastGamma=deg2rad(0))
+		self.J2_1 = resServo1
 		self.Servo1.setAngle(rad2deg(resServo1['BestGamma']))
 
 		resServo2 = self.getPossiblePositionJ2(self.Plate.magnet2Pos,self.Servo2.pos,deg2rad(-120),lastGamma=deg2rad(0))
+		self.J2_2 = resServo2
 		self.Servo2.setAngle(rad2deg(resServo2['BestGamma']))
 
 
 		resServo3 = self.getPossiblePositionJ2(self.Plate.magnet3Pos,self.Servo3.pos,deg2rad(-240),lastGamma=deg2rad(0))
+		self.J2_3 = resServo3
 		self.Servo3.setAngle(rad2deg(resServo3['BestGamma']))
 
 		if self.remote:

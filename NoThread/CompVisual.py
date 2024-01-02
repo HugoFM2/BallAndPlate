@@ -15,8 +15,9 @@ class CompVisual(QThread):
     print("[DEBUG] Thread CompVisual Inicializada")
     mainImage = pyqtSignal(np.ndarray)
     # cap = cv.VideoCapture(-1) # Inicia devagar, solucao: https://answers.opencv.org/question/215586/why-does-videocapture1-take-so-long/
-    # cap = cv.VideoCapture(0, cv.CAP_DSHOW)
-    cap = cv.VideoCapture(0)
+
+    cap = cv.VideoCapture(0) # Computador
+    # cap = cv.VideoCapture(1, cv.CAP_DSHOW) # Notebook
 
     cap.set(cv.CAP_PROP_BUFFERSIZE, 3)
 

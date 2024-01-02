@@ -935,7 +935,7 @@
        <rect>
         <x>10</x>
         <y>0</y>
-        <width>161</width>
+        <width>231</width>
         <height>51</height>
        </rect>
       </property>
@@ -945,7 +945,7 @@
        </font>
       </property>
       <property name="text">
-       <string>ArUco Detection</string>
+       <string>Perspective Correction</string>
       </property>
      </widget>
      <widget class="QLabel" name="disp_Aruco">
@@ -984,7 +984,7 @@
        </font>
       </property>
       <property name="text">
-       <string>Surface Detection</string>
+       <string>System Control</string>
       </property>
      </widget>
      <widget class="QStackedWidget" name="JanelasModoSurface">
@@ -1135,7 +1135,7 @@
        <widget class="QRadioButton" name="ControlType_PID">
         <property name="geometry">
          <rect>
-          <x>200</x>
+          <x>350</x>
           <y>400</y>
           <width>101</width>
           <height>21</height>
@@ -1150,29 +1150,6 @@
         </property>
         <property name="text">
          <string>PID</string>
-        </property>
-        <attribute name="buttonGroup">
-         <string notr="true">buttonGroup_2</string>
-        </attribute>
-       </widget>
-       <widget class="QRadioButton" name="ControlType_LQR">
-        <property name="geometry">
-         <rect>
-          <x>330</x>
-          <y>400</y>
-          <width>101</width>
-          <height>21</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <pointsize>14</pointsize>
-          <weight>50</weight>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>LQR</string>
         </property>
         <attribute name="buttonGroup">
          <string notr="true">buttonGroup_2</string>
@@ -1720,7 +1697,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>ArUco Detection</string>
+     <string>Perspective</string>
     </property>
     <attribute name="buttonGroup">
      <string notr="true">buttonGroup</string>
@@ -1752,7 +1729,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Surface Detection</string>
+     <string>System Control</string>
     </property>
     <attribute name="buttonGroup">
      <string notr="true">buttonGroup</string>
